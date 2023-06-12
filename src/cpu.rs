@@ -126,6 +126,16 @@ impl Cpu {
                     self.lda(val);
                     println!("lda absolute, Y {val:x?}");
                 }
+                0xa1 => {                    
+                    let val  = self.get_indirect_x();
+                    self.lda(val);
+                    println!("lda indirect, X {val:x?}");
+                }
+                0xb1 => {                    
+                    let val  = self.get_indirect_y();
+                    self.lda(val);
+                    println!("lda indirect, Y {val:x?}");
+                }
 
                 0xa2 => {                    
                     let val  = self.get_imm();
@@ -199,6 +209,217 @@ impl Cpu {
                     self.write_absolute_y(self.a);
                     println!("sta absolute, Y {:x?}", self.a);
                 }
+                0x81 => {
+                    self.write_indirect_x(self.a);
+                    println!("sta indirect, X {:x?}", self.a);
+                }
+                0x91 => {
+                    self.write_indirect_y(self.a);
+                    println!("sta indirect, Y {:x?}", self.a);
+                }
+
+                0x86 => {
+                    self.write_zero_page(self.x);
+                    println!("stx zero page {:x?}", self.x);
+                }
+                0x96 => {
+                    self.write_zero_page_y(self.x);
+                    println!("stx zero page, Y {:x?}", self.x);
+                }
+                0x8e => {
+                    self.write_absolute(self.x);
+                    println!("stx absolute {:x?}", self.x);
+                }
+
+                0x84 => {
+                    self.write_zero_page(self.y);
+                    println!("sty zero page {:x?}", self.y);
+                }
+                0x94 => {
+                    self.write_zero_page_x(self.y);
+                    println!("sty zero page, X {:x?}", self.y);
+                }
+                0x8c => {
+                    self.write_absolute(self.y);
+                    println!("sty absolute {:x?}", self.y);
+                }
+                
+                0xaa => {
+                    self.ldx(self.a);
+                    println!("tax");
+                }
+                0xa8 => {
+                    self.ldy(self.a);
+                    println!("tay");
+                }
+                0xba => {
+                    self.ldx(self.sp);
+                    println!("tsx");
+                }
+                0x8a => {
+                    self.lda(self.x);
+                    println!("txa");
+                }
+                0x9a => {
+                    self.sp = self.x;
+                    println!("txs");
+                }
+                0x98 => {
+                    self.lda(self.y);
+                    println!("tya");
+                }
+
+                0x48 => {
+                    self.stack_push(self.a);
+                    println!("pha");
+                }
+                0x08 => {
+                    self.stack_push(self.p);
+                    println!("php");
+                }
+                0x68 => {
+                    let val = self.stack_pull();
+                    self.lda(val);
+                    println!("pla");
+                }
+                0x28 => {
+                    self.p = self.stack_pull();
+                    println!("plp");
+                }
+
+                0x29 => {
+                    let val = self.get_imm() & self.a;
+                    self.lda(val);
+                    println!("and immediate {:x?}", val);
+                }
+                0x25 => {
+                    let val = self.get_zero_page() & self.a;
+                    self.lda(val);
+                    println!("and zero page {:x?}", val);
+                }
+                0x35 => {
+                    let val = self.get_zero_page_x() & self.a;
+                    self.lda(val);
+                    println!("and zero page, X {:x?}", val);
+                }
+                0x2d => {
+                    let val = self.get_absolute() & self.a;
+                    self.lda(val);
+                    println!("and absolute {:x?}", val);
+                }
+                0x3d => {
+                    let val = self.get_absolute_x() & self.a;
+                    self.lda(val);
+                    println!("and absolute, X {:x?}", val);
+                }
+                0x39 => {
+                    let val = self.get_absolute_y() & self.a;
+                    self.lda(val);
+                    println!("and absolute, Y {:x?}", val);
+                }
+                0x21 => {
+                    let val = self.get_indirect_x() & self.a;
+                    self.lda(val);
+                    println!("and indirect, X {:x?}", val);
+                }
+                0x31 => {
+                    let val = self.get_indirect_y() & self.a;
+                    self.lda(val);
+                    println!("and indirect, Y {:x?}", val);
+                }
+
+                0x49 => {
+                    let val = self.get_imm() ^ self.a;
+                    self.lda(val);
+                    println!("eor immediate {:x?}", val);
+                }
+                0x45 => {
+                    let val = self.get_zero_page() ^ self.a;
+                    self.lda(val);
+                    println!("eor zero page {:x?}", val);
+                }
+                0x55 => {
+                    let val = self.get_zero_page_x() ^ self.a;
+                    self.lda(val);
+                    println!("eor zero page, X {:x?}", val);
+                }
+                0x4d => {
+                    let val = self.get_absolute() ^ self.a;
+                    self.lda(val);
+                    println!("eor absolute {:x?}", val);
+                }
+                0x5d => {
+                    let val = self.get_absolute_x() ^ self.a;
+                    self.lda(val);
+                    println!("eor absolute, X {:x?}", val);
+                }
+                0x59 => {
+                    let val = self.get_absolute_y() ^ self.a;
+                    self.lda(val);
+                    println!("eor absolute, Y {:x?}", val);
+                }
+                0x41 => {
+                    let val = self.get_indirect_x() ^ self.a;
+                    self.lda(val);
+                    println!("eor indirect, X {:x?}", val);
+                }
+                0x51 => {
+                    let val = self.get_indirect_y() ^ self.a;
+                    self.lda(val);
+                    println!("eor indirect, Y {:x?}", val);
+                }
+
+                0x09 => {
+                    let val = self.get_imm() | self.a;
+                    self.lda(val);
+                    println!("ora immediate {:x?}", val);
+                }
+                0x05 => {
+                    let val = self.get_zero_page() | self.a;
+                    self.lda(val);
+                    println!("ora zero page {:x?}", val);
+                }
+                0x15 => {
+                    let val = self.get_zero_page_x() | self.a;
+                    self.lda(val);
+                    println!("ora zero page, X {:x?}", val);
+                }
+                0x0d => {
+                    let val = self.get_absolute() | self.a;
+                    self.lda(val);
+                    println!("ora absolute {:x?}", val);
+                }
+                0x1d => {
+                    let val = self.get_absolute_x() | self.a;
+                    self.lda(val);
+                    println!("ora absolute, X {:x?}", val);
+                }
+                0x19 => {
+                    let val = self.get_absolute_y() | self.a;
+                    self.lda(val);
+                    println!("ora absolute, Y {:x?}", val);
+                }
+                0x01 => {
+                    let val = self.get_indirect_x() | self.a;
+                    self.lda(val);
+                    println!("ora indirect, X {:x?}", val);
+                }
+                0x11 => {
+                    let val = self.get_indirect_y() | self.a;
+                    self.lda(val);
+                    println!("ora indirect, Y {:x?}", val);
+                }
+
+                0x24 => {
+                    let val = self.get_zero_page() & self.a;
+                    self.bit_test(val);
+                    println!("bit zero page {:x?}", val);
+                }
+                0x2c => {
+                    let val = self.get_absolute() & self.a;
+                    self.bit_test(val);
+                    println!("bit absolute {:x?}", val);
+                }
                 _ => print!("")
             }
 
@@ -225,6 +446,11 @@ impl Cpu {
         self.y = val;
         self.set_zero_flag(self.y == 0);
         self.set_negative(self.y & 0b10000000 == 0b10000000);
+    }
+    fn bit_test(&mut self, val: u8) {
+        self.set_zero_flag(val == 0);
+        self.set_negative(val & 0b10000000 == 0b10000000);
+        self.set_overflow(val & 0b01000000 == 0b01000000);
     }
 
     fn get_imm(&mut self) -> u8 {
@@ -321,6 +547,18 @@ impl Cpu {
         addr = (self.memory.read(addr) as u16) << 8;
         addr += self.y as u16;
         self.memory.write(val, addr);
+    }
+
+    fn stack_push(&mut self, val: u8) {
+        let addr = 0x0100 + (self.sp as u16);
+        self.memory.write(val, addr);
+        self.sp -= 1;
+    }
+
+    fn stack_pull(&mut self) -> u8 {
+        self.sp += 1;
+        let addr = 0x0100 + (self.sp as u16);
+        self.memory.read(addr)        
     }
 
     fn set_carry_flag(&mut self, carry: bool) {
