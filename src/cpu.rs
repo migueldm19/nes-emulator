@@ -126,6 +126,7 @@ impl Cpu {
                     self.lda(val);
                     println!("lda absolute, Y {val:x?}");
                 }
+
                 0xa2 => {                    
                     let val  = self.get_imm();
                     self.ldx(val);
@@ -151,6 +152,7 @@ impl Cpu {
                     self.ldx(val);
                     println!("ldx absolute, Y {val:x?}");
                 }
+
                 0xa0 => {                    
                     let val  = self.get_imm();
                     self.ldy(val);
@@ -176,6 +178,7 @@ impl Cpu {
                     self.ldy(val);
                     println!("ldy absolute, X {val:x?}");
                 }
+
                 0x85 => {
                     self.write_zero_page(self.a);
                     println!("sta zero page {:x?}", self.a);
@@ -261,6 +264,19 @@ impl Cpu {
         self.memory.read(addr)
     }
 
+    fn get_indirect_x(&mut self) -> u8 {
+        let ind_addr  = Wrapping(self.next_instruction()) + Wrapping(self.x);
+        let addr = (self.memory.read(ind_addr.0 as u16) as u16) << 8;
+        self.memory.read(addr)
+    }
+
+    fn get_indirect_y(&mut self) -> u8 {
+        let mut addr = self.next_instruction() as u16;
+        addr = (self.memory.read(addr) as u16) << 8;
+        addr += self.y as u16;
+        self.memory.read(addr)
+    }
+
     fn write_zero_page(&mut self, val: u8) {
         let addr  = self.next_instruction();
         self.memory.write(val, addr as u16);
@@ -291,6 +307,19 @@ impl Cpu {
     fn write_absolute_y(&mut self, val: u8) {
         let mut addr  = (self.next_instruction() as u16) << 8;
         addr = addr | (self.next_instruction() as u16) + (self.y as u16);
+        self.memory.write(val, addr);
+    }
+
+    fn write_indirect_x(&mut self, val: u8) {
+        let ind_addr  = Wrapping(self.next_instruction()) + Wrapping(self.x);
+        let addr = (self.memory.read(ind_addr.0 as u16) as u16) << 8;
+        self.memory.write(val, addr);
+    }
+
+    fn write_indirect_y(&mut self, val: u8) {
+        let mut addr = self.next_instruction() as u16;
+        addr = (self.memory.read(addr) as u16) << 8;
+        addr += self.y as u16;
         self.memory.write(val, addr);
     }
 
