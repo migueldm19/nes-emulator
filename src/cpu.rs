@@ -1,3 +1,4 @@
+use std::intrinsics::add_with_overflow;
 use std::ops::Range;
 use std::num::Wrapping;
 
@@ -420,6 +421,47 @@ impl Cpu {
                     self.bit_test(val);
                     println!("bit absolute {:x?}", val);
                 }
+
+                0x69 => {
+                    let val = self.get_imm();
+                    self.adc(val);
+                    println!("adc immediate {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x65 => {
+                    let val = self.get_zero_page();
+                    self.adc(val);
+                    println!("adc zero page {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x75 => {
+                    let val = self.get_zero_page_x();
+                    self.adc(val);
+                    println!("adc zero page, X {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x6d => {
+                    let val = self.get_absolute();
+                    self.adc(val);
+                    println!("adc absolute {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x7d => {
+                    let val = self.get_absolute_x();
+                    self.adc(val);
+                    println!("adc absolute, X {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x79 => {
+                    let val = self.get_absolute_y();
+                    self.adc(val);
+                    println!("adc absolute, Y {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x61 => {
+                    let val = self.get_indirect_x();
+                    self.adc(val);
+                    println!("adc indirect, X {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
+                0x71 => {
+                    let val = self.get_indirect_y();
+                    self.adc(val);
+                    println!("adc indirect, Y {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
+                }
                 _ => print!("")
             }
 
@@ -451,6 +493,17 @@ impl Cpu {
         self.set_zero_flag(val == 0);
         self.set_negative(val & 0b10000000 == 0b10000000);
         self.set_overflow(val & 0b01000000 == 0b01000000);
+    }
+
+    fn adc(&mut self, val: u8) {
+        let sum_1 = self.a.overflowing_add(val);
+        let sum_2 = sum_1.0.overflowing_add(self.get_carry_flag());        
+
+        self.a = sum_2.0;
+
+        self.set_carry_flag(sum_1.1 || sum_2.1);
+        self.set_negative(self.a & 0b10000000 == 0b10000000);
+        self.set_overflow(self.a & 0b10000000 == 0b10000000 && (sum_1.1 || sum_2.1));
     }
 
     fn get_imm(&mut self) -> u8 {
@@ -566,6 +619,10 @@ impl Cpu {
             true => self.p = self.p | 0b10000000,
             false => self.p = self.p & 0b01111111
         }
+    }
+
+    fn get_carry_flag(&self) -> u8 {
+        (self.p & 0b10000000) >> 7
     }
 
     fn set_zero_flag(&mut self, zero: bool) {
