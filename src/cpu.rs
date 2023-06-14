@@ -1,4 +1,3 @@
-use std::intrinsics::add_with_overflow;
 use std::ops::Range;
 use std::num::Wrapping;
 
@@ -462,6 +461,47 @@ impl Cpu {
                     self.adc(val);
                     println!("adc indirect, Y {:x?} + {:x?} + {}", self.a, val, self.get_carry_flag());
                 }
+
+                0xe9 => {
+                    let val = self.get_imm();
+                    self.sbc(val);
+                    println!("sbc immediate {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xe5 => {
+                    let val = self.get_zero_page();
+                    self.sbc(val);
+                    println!("sbc zero page {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xf5 => {
+                    let val = self.get_zero_page_x();
+                    self.sbc(val);
+                    println!("sbc zero page, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xed => {
+                    let val = self.get_absolute();
+                    self.sbc(val);
+                    println!("sbc absolute {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xfd => {
+                    let val = self.get_absolute_x();
+                    self.sbc(val);
+                    println!("sbc absolute, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xf9 => {
+                    let val = self.get_absolute_y();
+                    self.sbc(val);
+                    println!("sbc absolute, Y {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xe1 => {
+                    let val = self.get_indirect_x();
+                    self.sbc(val);
+                    println!("sbc indirect, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
+                0xf1 => {
+                    let val = self.get_indirect_y();
+                    self.sbc(val);
+                    println!("sbc indirect, Y {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                }
                 _ => print!("")
             }
 
@@ -500,10 +540,23 @@ impl Cpu {
         let sum_2 = sum_1.0.overflowing_add(self.get_carry_flag());        
 
         self.a = sum_2.0;
-
+        
+        self.set_zero_flag(self.a == 0);
         self.set_carry_flag(sum_1.1 || sum_2.1);
         self.set_negative(self.a & 0b10000000 == 0b10000000);
         self.set_overflow(self.a & 0b10000000 == 0b10000000 && (sum_1.1 || sum_2.1));
+    }
+
+    fn sbc(&mut self, val: u8) {
+        let sub_1 = self.a.overflowing_sub(val);
+        let sub_2 = sub_1.0.overflowing_sub(1 -self.get_carry_flag());        
+
+        self.a = sub_2.0;
+        
+        self.set_zero_flag(self.a == 0);
+        self.set_carry_flag(!(sub_1.1 || sub_2.1));
+        self.set_negative(self.a & 0b10000000 == 0b10000000);
+        self.set_overflow(self.a & 0b10000000 == 0b10000000 && !(sub_1.1 || sub_2.1));
     }
 
     fn get_imm(&mut self) -> u8 {
