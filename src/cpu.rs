@@ -502,6 +502,79 @@ impl Cpu {
                     self.sbc(val);
                     println!("sbc indirect, Y {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
                 }
+
+                0xc9 => {
+                    let val = self.get_imm();
+                    self.cmp(self.a, val);
+                    println!("cmp immediate {:x?}, {:x?}", self.a, val);
+                }
+                0xc5 => {
+                    let val = self.get_zero_page();
+                    self.cmp(self.a, val);
+                    println!("cmp zero page {:x?}, {:x?}", self.a, val);
+                }
+                0xd5 => {
+                    let val = self.get_zero_page_x();
+                    self.cmp(self.a, val);
+                    println!("cmp zero page, X {:x?}, {:x?}", self.a, val);
+                }
+                0xcd => {
+                    let val = self.get_absolute();
+                    self.cmp(self.a, val);
+                    println!("cmp absolute {:x?}, {:x?}", self.a, val);
+                }
+                0xdd => {
+                    let val = self.get_absolute_x();
+                    self.cmp(self.a, val);
+                    println!("cmp absolute, X {:x?}, {:x?}", self.a, val);
+                }
+                0xd9 => {
+                    let val = self.get_absolute_y();
+                    self.cmp(self.a, val);
+                    println!("cmp absolute, Y {:x?}, {:x?}", self.a, val);
+                }
+                0xc1 => {
+                    let val = self.get_indirect_x();
+                    self.cmp(self.a, val);
+                    println!("cmp indirect, X {:x?}, {:x?}", self.a, val);
+                }
+                0xd1 => {
+                    let val = self.get_indirect_y();
+                    self.cmp(self.a, val);
+                    println!("cmp indirect, Y {:x?}, {:x?}", self.a, val);
+                }
+
+                0xe0 => {
+                    let val = self.get_imm();
+                    self.cmp(self.x, val);
+                    println!("cpx immediate {:x?}, {:x?}", self.x, val);
+                }
+                0xe4 => {
+                    let val = self.get_zero_page();
+                    self.cmp(self.x, val);
+                    println!("cpx zero page {:x?}, {:x?}", self.x, val);
+                }
+                0xec => {
+                    let val = self.get_absolute();
+                    self.cmp(self.x, val);
+                    println!("cpx absolute {:x?}, {:x?}", self.x, val);
+                }
+                
+                0xc0 => {
+                    let val = self.get_imm();
+                    self.cmp(self.y, val);
+                    println!("cpy immediate {:x?}, {:x?}", self.y, val);
+                }
+                0xc4 => {
+                    let val = self.get_zero_page();
+                    self.cmp(self.y, val);
+                    println!("cpy zero page {:x?}, {:x?}", self.y, val);
+                }
+                0xcc => {
+                    let val = self.get_absolute();
+                    self.cmp(self.y, val);
+                    println!("cpy absolute {:x?}, {:x?}", self.y, val);
+                }
                 _ => print!("")
             }
 
@@ -557,6 +630,11 @@ impl Cpu {
         self.set_carry_flag(!(sub_1.1 || sub_2.1));
         self.set_negative(self.a & 0b10000000 == 0b10000000);
         self.set_overflow(self.a & 0b10000000 == 0b10000000 && !(sub_1.1 || sub_2.1));
+    }
+
+    fn cmp(&mut self,val_1: u8, val_2: u8) {
+        self.set_carry_flag(val_1 >= val_2);
+        self.set_zero_flag(val_1 == val_2);
     }
 
     fn get_imm(&mut self) -> u8 {
