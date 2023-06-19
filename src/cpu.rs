@@ -96,6 +96,7 @@ impl Cpu {
 
             match opcode {
                 0x00 => print!(""),//TODO
+                0xea => println!("nop"),
                 0xa9 => {                    
                     let val  = self.get_imm();
                     self.lda(val);
@@ -650,6 +651,159 @@ impl Cpu {
                 0x88 => {
                     self.ldx(self.y.overflowing_sub(1).0);
                     println!("dey {:x?}", self.y);
+                }
+
+                0x0a => {
+                    self.set_carry_flag(self.a & 0b10000000 == 0b10000000);
+                    self.lda(self.a << 1);
+                    println!("asl acc {:x?}", self.a);
+                }
+                0x06 => {
+                    let val = self.get_zero_page();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags(val << 1);                    
+                    self.write_zero_page(val << 1);
+                    println!("asl zero page {:x?}", val);
+                }
+                0x16 => {
+                    let val = self.get_zero_page_x();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags(val << 1);                    
+                    self.write_zero_page_x(val << 1);
+                    println!("asl zero page, X {:x?}", val);
+                }
+                0x0e => {
+                    let val = self.get_absolute();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags(val << 1);                    
+                    self.write_absolute(val << 1);
+                    println!("asl absolute {:x?}", val);
+                }
+                0x1e => {
+                    let val = self.get_absolute_x();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags(val << 1);                    
+                    self.write_absolute_x(val << 1);
+                    println!("asl absolute, x {:x?}", val);
+                }
+
+                0x4a => {
+                    self.set_carry_flag(self.a & 0b00000001 == 0b00000001);
+                    self.lda(self.a >> 1);
+                    println!("lsr acc {:x?}", self.a);
+                }
+                0x46 => {
+                    let val = self.get_zero_page();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b00000001 == 0b00000001);
+                    self.assign_basic_flags(val >> 1);                    
+                    self.write_zero_page(val >> 1);
+                    println!("lsr zero page {:x?}", val);
+                }
+                0x56 => {
+                    let val = self.get_zero_page_x();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b00000001 == 0b00000001);
+                    self.assign_basic_flags(val >> 1);                    
+                    self.write_zero_page_x(val >> 1);
+                    println!("lsr zero page, X {:x?}", val);
+                }
+                0x4e => {
+                    let val = self.get_absolute();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b00000001 == 0b00000001);
+                    self.assign_basic_flags(val >> 1);                    
+                    self.write_absolute(val >> 1);
+                    println!("lsr absolute {:x?}", val);
+                }
+
+                0x5e => {
+                    let val = self.get_absolute_x();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b00000001 == 0b00000001);
+                    self.assign_basic_flags(val >> 1);                    
+                    self.write_absolute_x(val >> 1);
+                    println!("lsr absolute, x {:x?}", val);
+                }
+
+                0x2a => {
+                    self.set_carry_flag(self.a & 0b10000000 == 0b10000000);
+                    self.lda((self.a << 1) + self.get_carry_flag());
+                    println!("rol acc {:x?}", self.a);
+                }
+                0x26 => {
+                    let val = self.get_zero_page();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val << 1) + self.get_carry_flag());                    
+                    self.write_zero_page((val << 1) + self.get_carry_flag());
+                    println!("rol zero page {:x?}", val);
+                }
+                0x36 => {
+                    let val = self.get_zero_page_x();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val << 1) + self.get_carry_flag());                    
+                    self.write_zero_page_x((val << 1) + self.get_carry_flag());
+                    println!("rol zero page, X {:x?}", val);
+                }
+                0x2e => {
+                    let val = self.get_absolute();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val << 1) + self.get_carry_flag());                    
+                    self.write_absolute((val << 1) + self.get_carry_flag());
+                    println!("rol absolute {:x?}", val);
+                }
+                0x3e => {
+                    let val = self.get_absolute_x();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val << 1) + self.get_carry_flag());                    
+                    self.write_absolute_x((val << 1) + self.get_carry_flag());
+                    println!("rol absolute, x {:x?}", val);
+                }
+                
+                0x6a => {
+                    self.set_carry_flag(self.a & 0b10000000 == 0b10000000);
+                    self.lda((self.a >> 1) + (self.get_carry_flag() << 7));
+                    println!("ror acc {:x?}", self.a);
+                }
+                0x66 => {
+                    let val = self.get_zero_page();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val >> 1) + (self.get_carry_flag() << 7));                    
+                    self.write_zero_page((val >> 1) + (self.get_carry_flag() << 7));
+                    println!("ror zero page {:x?}", val);
+                }
+                0x76 => {
+                    let val = self.get_zero_page_x();
+                    self.pc -= 1;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val >> 1) + (self.get_carry_flag() << 7));                    
+                    self.write_zero_page_x((val >> 1) + (self.get_carry_flag() << 7));
+                    println!("ror zero page, X {:x?}", val);
+                }
+                0x6e => {
+                    let val = self.get_absolute();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val >> 1) + (self.get_carry_flag() << 7));                    
+                    self.write_absolute((val >> 1) + (self.get_carry_flag() << 7));
+                    println!("ror absolute {:x?}", val);
+                }
+                0x7e => {
+                    let val = self.get_absolute_x();
+                    self.pc -= 2;
+                    self.set_carry_flag(val & 0b10000000 == 0b10000000);
+                    self.assign_basic_flags((val >> 1) + (self.get_carry_flag() << 7));                    
+                    self.write_absolute_x((val >> 1) + (self.get_carry_flag() << 7));
+                    println!("ror absolute, x {:x?}", val);
                 }
                 _ => print!("")
             }
