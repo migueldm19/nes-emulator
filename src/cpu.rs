@@ -575,6 +575,82 @@ impl Cpu {
                     self.cmp(self.y, val);
                     println!("cpy absolute {:x?}, {:x?}", self.y, val);
                 }
+
+                0xe6 => {
+                    let val = self.get_zero_page().overflowing_add(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 1;
+                    self.write_zero_page(val);
+                    println!("inc zero page {:x?}", val);
+                }
+                0xf6 => {
+                    let val = self.get_zero_page_x().overflowing_add(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 1;
+                    self.write_zero_page_x(val);
+                    println!("inc zero page, x {:x?}", val);
+                }
+                0xee => {
+                    let val = self.get_absolute().overflowing_add(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 2;
+                    self.write_absolute(val);
+                    println!("inc absolute {:x?}", val);
+                }
+                0xfe => {
+                    let val = self.get_absolute_x().overflowing_add(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 2;
+                    self.write_absolute_x(val);
+                    println!("inc absolute, X {:x?}", val);
+                }
+
+                0xe8 => {
+                    self.ldx(self.x.overflowing_add(1).0);
+                    println!("inx {:x?}", self.x);
+                }
+                0xc8 => {
+                    self.ldx(self.y.overflowing_add(1).0);
+                    println!("iny {:x?}", self.y);
+                }
+
+                0xc6 => {
+                    let val = self.get_zero_page().overflowing_sub(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 1;
+                    self.write_zero_page(val);
+                    println!("dec zero page {:x?}", val);
+                }
+                0xd6 => {
+                    let val = self.get_zero_page_x().overflowing_sub(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 1;
+                    self.write_zero_page_x(val);
+                    println!("dec zero page, x {:x?}", val);
+                }
+                0xce => {
+                    let val = self.get_absolute().overflowing_sub(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 2;
+                    self.write_absolute(val);
+                    println!("dec absolute {:x?}", val);
+                }
+                0xde => {
+                    let val = self.get_absolute_x().overflowing_sub(1).0;
+                    self.assign_basic_flags(val);
+                    self.pc -= 2;
+                    self.write_absolute_x(val);
+                    println!("dec absolute, X {:x?}", val);
+                }
+
+                0xca => {
+                    self.ldx(self.x.overflowing_sub(1).0);
+                    println!("dex {:x?}", self.x);
+                }
+                0x88 => {
+                    self.ldx(self.y.overflowing_sub(1).0);
+                    println!("dey {:x?}", self.y);
+                }
                 _ => print!("")
             }
 
@@ -585,26 +661,27 @@ impl Cpu {
         }
     }
 
+    fn assign_basic_flags(&mut self, val: u8) {
+        self.set_zero_flag(val == 0);
+        self.set_negative(val & 0b10000000 == 0b10000000);
+    }
+
     fn lda(&mut self, val: u8) {
         self.a = val;
-        self.set_zero_flag(self.a == 0);
-        self.set_negative(self.a & 0b10000000 == 0b10000000);
+        self.assign_basic_flags(self.a);
     }
 
     fn ldx(&mut self, val: u8) {
         self.x = val;
-        self.set_zero_flag(self.x == 0);
-        self.set_negative(self.x & 0b10000000 == 0b10000000);
+        self.assign_basic_flags(self.x);
     }
 
     fn ldy(&mut self, val: u8) {
         self.y = val;
-        self.set_zero_flag(self.y == 0);
-        self.set_negative(self.y & 0b10000000 == 0b10000000);
+        self.assign_basic_flags(self.y);
     }
     fn bit_test(&mut self, val: u8) {
-        self.set_zero_flag(val == 0);
-        self.set_negative(val & 0b10000000 == 0b10000000);
+        self.assign_basic_flags(val);
         self.set_overflow(val & 0b01000000 == 0b01000000);
     }
 
