@@ -90,6 +90,7 @@ impl Cpu {
     }
 
     pub fn run(&mut self) {
+        self.print_mem();
         loop {
             let opcode = self.next_instruction();
             if opcode != 0x00 && opcode != 0x03 {
@@ -97,8 +98,24 @@ impl Cpu {
             }            
 
             match opcode {
-                0x00 => print!(""),//TODO
+                // 0x00 => {
+                //     self.stack_push((self.pc & 0x0f) as u8);
+                //     self.stack_push(((self.pc & 0xf0) >> 8) as u8);
+                //     self.stack_push(self.p);
+                //     let addr1 = (self.memory.read(0xfffd) as u16) << 8;
+                //     let addr2 = self.memory.read(0xfffe) as u16;
+                //     self.pc = addr1 + addr2;
+                //     println!("brk");
+                // }
+                0x40 => {
+                    self.p = self.stack_pull();
+                    let addr1 = (self.stack_pull() as u16) << 8;
+                    let addr2 = self.stack_pull() as u16;
+                    self.pc = addr1 + addr2;
+                    println!("rti");
+                }
                 0xea => println!("nop"),
+
                 0xa9 => {                    
                     let val  = self.get_imm();
                     self.lda(val);
