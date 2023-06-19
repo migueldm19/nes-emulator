@@ -91,8 +91,10 @@ impl Cpu {
 
     pub fn run(&mut self) {
         loop {
-            let opcode = self.memory.read(self.pc);
-            self.pc += 1;
+            let opcode = self.next_instruction();
+            if(opcode != 0x00 && opcode != 0x03) {
+                print!("Opcode: {:x?}, PC: {:x?} | ", opcode, self.pc);
+            }            
 
             match opcode {
                 0x00 => print!(""),//TODO
@@ -767,7 +769,7 @@ impl Cpu {
                     self.write_absolute_x((val << 1) + self.get_carry_flag());
                     println!("rol absolute, x {:x?}", val);
                 }
-                
+
                 0x6a => {
                     self.set_carry_flag(self.a & 0b10000000 == 0b10000000);
                     self.lda((self.a >> 1) + (self.get_carry_flag() << 7));
@@ -804,6 +806,89 @@ impl Cpu {
                     self.assign_basic_flags((val >> 1) + (self.get_carry_flag() << 7));                    
                     self.write_absolute_x((val >> 1) + (self.get_carry_flag() << 7));
                     println!("ror absolute, x {:x?}", val);
+                }
+
+                0x4c => {
+                    let addr = self.get_absolute_addr();
+                    self.pc = addr;
+                    println!("jmp absolute {:x?}", addr);
+                }
+                0x6c => {
+                    let addr = self.get_indirect_addr();
+                    self.pc = addr;
+                    println!("jmp indirect {:x?}", addr);
+                }
+
+                0x20 => {
+                    let addr = self.get_absolute_addr();
+                    self.stack_push(((self.pc - 1) & 0x0f) as u8);
+                    self.stack_push((((self.pc - 1) & 0xf0) >> 8) as u8);
+                    self.pc = addr;
+                    println!("jsr absolute {:x?}", addr);
+                }
+
+                0x60 => {
+                    let mut addr = (self.stack_pull() as u16) << 8;
+                    addr += self.stack_pull() as u16;
+                    self.pc = addr;
+                    println!("rts {:x?}", addr);
+                }
+
+                0x90 => { // PC + 1???
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_carry_flag() == 0 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bcc {}", displacement);
+                }
+                0xb0 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_carry_flag() == 1 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bcs {}", displacement);
+                }
+                0xf0 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_zero_flag() == 1 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("beq {}", displacement);
+                }
+                0x30 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_negative_flag() == 1 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bmi {}", displacement);
+                }
+                0xd0 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_zero_flag() == 0 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bne {}", displacement);
+                }
+                0x10 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_negative_flag() == 0 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bpl {}", displacement);
+                }
+                0x50 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_overflow_flag() == 0 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bvc {}", displacement);
+                }
+                0x70 => {
+                    let displacement: i8 = self.get_imm() as i8;
+                    if self.get_overflow_flag() == 1 {
+                        self.branch_jump(displacement);
+                    }
+                    println!("bvs {}", displacement);
                 }
                 _ => print!("")
             }
@@ -868,6 +953,14 @@ impl Cpu {
         self.set_zero_flag(val_1 == val_2);
     }
 
+    fn branch_jump(&mut self, displacement: i8) {
+        if(displacement < 0) {
+            self.pc -= (-displacement as u8) as u16;
+        } else {
+            self.pc += displacement as u16;
+        }
+    }
+
     fn get_imm(&mut self) -> u8 {
         self.next_instruction()
     }
@@ -887,21 +980,32 @@ impl Cpu {
         self.memory.read(addr.0 as u16)
     }
 
-    fn get_absolute(&mut self) -> u8 {
+    fn get_absolute_addr(&mut self) -> u16 {
         let mut addr  = (self.next_instruction() as u16) << 8;
         addr = addr | (self.next_instruction() as u16);
+        addr
+    }
+
+    fn get_indirect_addr(&mut self) -> u16 {
+        let mut addr  = (self.next_instruction() as u16) << 8;
+        addr = addr | (self.next_instruction() as u16);
+        let addr1 = (self.memory.read(addr) as u16) << 8;
+        let addr2 = self.memory.read(addr + 1) as u16;
+        addr1 + addr2
+    }
+
+    fn get_absolute(&mut self) -> u8 {
+        let addr  = self.get_absolute_addr();
         self.memory.read(addr)
     }
 
     fn get_absolute_x(&mut self) -> u8 {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16) + (self.x as u16);
+        let addr  = self.get_absolute_addr() + (self.x as u16);
         self.memory.read(addr)
     }
 
     fn get_absolute_y(&mut self) -> u8 {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16) + (self.y as u16);
+        let addr  = self.get_absolute_addr() + (self.y as u16);
         self.memory.read(addr)
     }
 
@@ -1000,6 +1104,18 @@ impl Cpu {
         }
     }
 
+    fn get_zero_flag(&self) -> u8 {
+        (self.p & 0b01000000) >> 6
+    }
+
+    fn get_negative_flag(&self) -> u8 {
+        (self.p & 0b00000010) >> 1
+    }
+
+    fn get_overflow_flag(&self) -> u8 {
+        (self.p & 0b00000100) >> 1
+    }
+
     fn set_interrupt_disable(&mut self, interrupt_disable: bool) {
         match interrupt_disable {
             true => self.p = self.p | 0b00100000,
@@ -1036,18 +1152,18 @@ impl Cpu {
     }
 
     pub fn print_mem(&self) {
-        println!("=======================RAM=======================");
-        println!("{:x?}", &self.memory.data[..0x800]);
-        println!("=======================RAM MIRRORS=======================");
-        println!("{:x?}", &self.memory.data[0x800..0x2000]);
-        println!("=======================PPU REGISTERS=======================");
-        println!("{:x?}", &self.memory.data[0x2000..0x2008]);
-        println!("=======================PPU REGISTERS MIRRORS=======================");
-        println!("{:x?}", &self.memory.data[0x2008..0x4000]);
-        println!("=======================APU AND I/O REGISTERS=======================");
-        println!("{:x?}", &self.memory.data[0x4000..0x4018]);
-        println!("=======================APU AND I/O FUNCTIONALITY=======================");
-        println!("{:x?}", &self.memory.data[0x4018..0x4020]);
+        // println!("=======================RAM=======================");
+        // println!("{:x?}", &self.memory.data[..0x800]);
+        // println!("=======================RAM MIRRORS=======================");
+        // println!("{:x?}", &self.memory.data[0x800..0x2000]);
+        // println!("=======================PPU REGISTERS=======================");
+        // println!("{:x?}", &self.memory.data[0x2000..0x2008]);
+        // println!("=======================PPU REGISTERS MIRRORS=======================");
+        // println!("{:x?}", &self.memory.data[0x2008..0x4000]);
+        // println!("=======================APU AND I/O REGISTERS=======================");
+        // println!("{:x?}", &self.memory.data[0x4000..0x4018]);
+        // println!("=======================APU AND I/O FUNCTIONALITY=======================");
+        // println!("{:x?}", &self.memory.data[0x4018..0x4020]);
         println!("=======================PRG ROM, PRG RAM AND MAPPER REGISTERS=======================");
         println!("{:x?}", &self.memory.data[0x4020..]);
     }
