@@ -465,42 +465,42 @@ impl Cpu {
                 0xe9 => {
                     let val = self.get_imm();
                     self.sbc(val);
-                    println!("sbc immediate {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc immediate {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xe5 => {
                     let val = self.get_zero_page();
                     self.sbc(val);
-                    println!("sbc zero page {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc zero page {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xf5 => {
                     let val = self.get_zero_page_x();
                     self.sbc(val);
-                    println!("sbc zero page, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc zero page, X {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xed => {
                     let val = self.get_absolute();
                     self.sbc(val);
-                    println!("sbc absolute {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc absolute {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xfd => {
                     let val = self.get_absolute_x();
                     self.sbc(val);
-                    println!("sbc absolute, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc absolute, X {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xf9 => {
                     let val = self.get_absolute_y();
                     self.sbc(val);
-                    println!("sbc absolute, Y {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc absolute, Y {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xe1 => {
                     let val = self.get_indirect_x();
                     self.sbc(val);
-                    println!("sbc indirect, X {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc indirect, X {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
                 0xf1 => {
                     let val = self.get_indirect_y();
                     self.sbc(val);
-                    println!("sbc indirect, Y {:x?} - {:x?} - {}", self.a, val, self.get_carry_flag());
+                    println!("sbc indirect, Y {:x?} - {:x?} - {}", self.a, val, 1 - self.get_carry_flag());
                 }
 
                 0xc9 => {
@@ -622,7 +622,7 @@ impl Cpu {
 
     fn sbc(&mut self, val: u8) {
         let sub_1 = self.a.overflowing_sub(val);
-        let sub_2 = sub_1.0.overflowing_sub(1 -self.get_carry_flag());        
+        let sub_2 = sub_1.0.overflowing_sub(1 - (1 - self.get_carry_flag()));        
 
         self.a = sub_2.0;
         
@@ -740,9 +740,15 @@ impl Cpu {
     }
 
     fn stack_pull(&mut self) -> u8 {
-        self.sp += 1;
-        let addr = 0x0100 + (self.sp as u16);
-        self.memory.read(addr)        
+        let addr: u16;
+        if self.sp < 0xff {
+            self.sp += 1;
+            addr = 0x0100 + (self.sp as u16);            
+        } else {
+            addr = 0x0100 + 0xff;
+        }
+        self.memory.read(addr)
+           
     }
 
     fn set_carry_flag(&mut self, carry: bool) {
