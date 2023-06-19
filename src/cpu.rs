@@ -92,7 +92,7 @@ impl Cpu {
     pub fn run(&mut self) {
         loop {
             let opcode = self.next_instruction();
-            if(opcode != 0x00 && opcode != 0x03) {
+            if opcode != 0x00 && opcode != 0x03 {
                 print!("Opcode: {:x?}, PC: {:x?} | ", opcode, self.pc);
             }            
 
@@ -890,6 +890,35 @@ impl Cpu {
                     }
                     println!("bvs {}", displacement);
                 }
+
+                0x18 => {
+                    self.set_carry_flag(false);
+                    println!("clc");
+                }
+                0xd8 => {
+                    self.set_decimal_mode(false);
+                    println!("cld");
+                }
+                0x58 => {
+                    self.set_interrupt_disable(false);
+                    println!("cli");
+                }
+                0xb8 => {
+                    self.set_overflow(false);
+                    println!("clv");
+                }
+                0x38 => {
+                    self.set_carry_flag(true);
+                    println!("sec");
+                }
+                0xf8 => {
+                    self.set_decimal_mode(true);
+                    println!("sed");
+                }
+                0x78 => {
+                    self.set_interrupt_disable(true);
+                    println!("sei");
+                }
                 _ => print!("")
             }
 
@@ -954,7 +983,7 @@ impl Cpu {
     }
 
     fn branch_jump(&mut self, displacement: i8) {
-        if(displacement < 0) {
+        if displacement < 0 {
             self.pc -= (-displacement as u8) as u16;
         } else {
             self.pc += displacement as u16;
