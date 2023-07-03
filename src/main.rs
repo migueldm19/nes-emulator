@@ -1,4 +1,4 @@
-use std::{fs, num::Wrapping};
+use std::{fs};
 mod cpu;
 
 fn read_header(data: &Vec<u8>) {
@@ -21,7 +21,7 @@ fn read_header(data: &Vec<u8>) {
 }
 
 fn main() {
-    let data = fs::read("cpu_dummy_reads.nes");
+    let data = fs::read("nestest.nes");
     match data {
         Ok(_data) => {
             read_header(&_data);

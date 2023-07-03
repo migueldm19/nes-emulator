@@ -1,11 +1,9 @@
-use std::ops::Range;
-use std::num::Wrapping;
+use std::{num::Wrapping, thread::panicking};
 
 pub struct Rom {
     prg_rom_size: u16,
     chr_rom_size: u16,
-    prg_rom: Vec<u8>,
-    chr_rom: Vec<u8>
+    rom_data: Vec<u8>,
 }
 
 impl Rom {
@@ -13,46 +11,62 @@ impl Rom {
         let header = &data[..16];
         let prg_rom_size = (header[4] as u16) * 16384;
         let chr_rom_size = (header[5] as u16) * 8192;
-    
-        let range_prg = Range {start: 16 as usize, end: (16 + prg_rom_size as usize)};
-        let prg_rom: Vec<u8> = Vec::from(&data[range_prg]);
-    
-        let range_chr = Range {start: (16 + prg_rom_size as usize) as usize, end: ((16 + prg_rom_size + chr_rom_size) as usize)};
-        let chr_rom: Vec<u8> = Vec::from(&data[range_chr]);
-    
+        
+        //println!("Length: {:x?}", data.len());
+        let mut prg_rom: Vec<u8> = Vec::new();
+        if prg_rom_size <= 0x4000 {
+            let mut prg_rom_lower = Vec::from(&data[16..(prg_rom_size as usize + 16)]);
+            let mut prg_rom_upper = Vec::from(&data[16..(prg_rom_size as usize + 16)]);
+
+            prg_rom.append(&mut prg_rom_lower);
+            prg_rom.append(&mut prg_rom_upper);
+        } else {
+            prg_rom = Vec::from(&data[16..(prg_rom_size as usize + 16)]);
+        }
+
+        println!("{:x?}", data);
         Rom {
             prg_rom_size: prg_rom_size, 
             chr_rom_size: chr_rom_size, 
-            prg_rom: prg_rom,
-            chr_rom: chr_rom,
+            rom_data: prg_rom
         }
-    }
-
-    pub fn print_prg(&self) {
-        println!("{:?}", self.prg_rom[0]);
-    }
-
-    pub fn read(&self, idx: usize) -> u8 {
-        self.prg_rom[idx]
     }
 }
 
 struct Memory {
-    data: [u8; 0xffff]
+    ram: Vec<u8>,
+    io_registers: Vec<u8>,
+    sram: Vec<u8>,
+    expansion_rom: Vec<u8>,
+    prg_rom: Vec<u8>
 }
 
 impl Memory {
     fn read(&self, idx: u16) -> u8 {
-        self.data[idx as usize]
+        //println!("idx: {:x?}, prg rom length: {:x?}", idx, self.prg_rom.len());
+        match idx {
+            0..=0x1fff => self.ram[idx as usize],
+            0x2000..=0x401f => self.io_registers[(idx - 0x2000) as usize],
+            0x4020..=0x5fff => self.expansion_rom[(idx - 0x4020) as usize],
+            0x6000..=0x7fff => self.sram[(idx - 0x6000) as usize],
+            0x8000..=0xffff => self.prg_rom[(idx - 0x8000) as usize],
+            _ => panic!("Read index out of range: {idx:x?}")
+        }
     }
 
     fn write(&mut self, val: u8, idx: u16) {
-        self.data[idx as usize] = val;
+        match idx {
+            0..=0x1fff => self.ram[idx as usize] = val,
+            0x2000..=0x401f => self.io_registers[(idx - 0x2000) as usize] = val,
+            0x4020..=0x5fff => self.expansion_rom[(idx - 0x4020) as usize] = val,
+            0x6000..=0x7fff => self.sram[(idx - 0x6000) as usize] = val,
+            0x8000..=0xffff => self.prg_rom[(idx - 0x8000) as usize] = val,
+            _ => panic!("Read index out of range: {idx:x?}")
+        }
     }
 
     pub fn load_rom(&mut self, rom: Rom) {
-        let range = Range {start: 0x4020 as usize, end: (0x4020 + rom.prg_rom_size as usize)};
-        self.data[range].copy_from_slice(&rom.prg_rom);
+        self.prg_rom = rom.rom_data;
     }
 }
 
@@ -69,14 +83,21 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new(rom: Rom) -> Cpu {
-        let mut mem = Memory { data: [0; 0xffff] };
+        let mut mem = Memory{
+            ram: vec![0; 0x2000],
+            io_registers: vec![0; 0x2020],
+            sram: vec![0; 0x2000],
+            expansion_rom: vec![0; 0x6000 - 0x4020],
+            prg_rom: Vec::new(),
+        };
+
         mem.load_rom(rom);
 
         Cpu {
             a: 0,
             x: 0,
             y: 0,
-            pc: 0x4020, // prg rom
+            pc: 0xc000,
             sp: 0xfd,
             p: 0x34,
             memory: mem
@@ -91,22 +112,21 @@ impl Cpu {
 
     pub fn run(&mut self) {
         self.print_mem();
+        
         loop {
             let opcode = self.next_instruction();
-            if opcode != 0x00 && opcode != 0x03 {
-                print!("Opcode: {:x?}, PC: {:x?} | ", opcode, self.pc);
-            }            
+            print!("Opcode: {:x?}, PC: {:x?} | ", opcode, self.pc);      
 
             match opcode {
-                // 0x00 => {
-                //     self.stack_push((self.pc & 0x0f) as u8);
-                //     self.stack_push(((self.pc & 0xf0) >> 8) as u8);
-                //     self.stack_push(self.p);
-                //     let addr1 = (self.memory.read(0xfffd) as u16) << 8;
-                //     let addr2 = self.memory.read(0xfffe) as u16;
-                //     self.pc = addr1 + addr2;
-                //     println!("brk");
-                // }
+                0x00 => {
+                    self.stack_push((self.pc & 0x0f) as u8);
+                    self.stack_push(((self.pc & 0xf0) >> 8) as u8);
+                    self.stack_push(self.p);
+                    let addr1 = (self.memory.read(0xfffe) as u16) << 8;
+                    let addr2 = self.memory.read(0xffff) as u16;
+                    self.pc = addr1 + addr2;
+                    println!("brk");
+                }
                 0x40 => {
                     self.p = self.stack_pull();
                     let addr1 = (self.stack_pull() as u16) << 8;
@@ -826,18 +846,18 @@ impl Cpu {
                 }
 
                 0x4c => {
-                    let addr = self.get_absolute_addr();
+                    let addr = self.get_absolute_addr() - 1;
                     self.pc = addr;
                     println!("jmp absolute {:x?}", addr);
                 }
                 0x6c => {
-                    let addr = self.get_indirect_addr();
+                    let addr = self.get_indirect_addr() - 1;
                     self.pc = addr;
                     println!("jmp indirect {:x?}", addr);
                 }
 
                 0x20 => {
-                    let addr = self.get_absolute_addr();
+                    let addr = self.get_absolute_addr() - 1;
                     self.stack_push(((self.pc - 1) & 0x0f) as u8);
                     self.stack_push((((self.pc - 1) & 0xf0) >> 8) as u8);
                     self.pc = addr;
@@ -1117,6 +1137,9 @@ impl Cpu {
     fn stack_push(&mut self, val: u8) {
         let addr = 0x0100 + (self.sp as u16);
         self.memory.write(val, addr);
+        if self.sp == 0 {
+            panic!("Stack overflow");
+        }
         self.sp -= 1;
     }
 
@@ -1211,6 +1234,6 @@ impl Cpu {
         // println!("=======================APU AND I/O FUNCTIONALITY=======================");
         // println!("{:x?}", &self.memory.data[0x4018..0x4020]);
         println!("=======================PRG ROM, PRG RAM AND MAPPER REGISTERS=======================");
-        println!("{:x?}", &self.memory.data[0x4020..]);
+        println!("{:x?}", &self.memory.prg_rom);
     }
 }
