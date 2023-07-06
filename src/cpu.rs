@@ -1,4 +1,4 @@
-use std::{num::Wrapping, thread::panicking};
+use std::{num::Wrapping};
 
 pub struct Rom {
     prg_rom_size: u16,
@@ -23,8 +23,7 @@ impl Rom {
         } else {
             prg_rom = Vec::from(&data[16..(prg_rom_size as usize + 16)]);
         }
-
-        println!("{:x?}", data);
+        
         Rom {
             prg_rom_size: prg_rom_size, 
             chr_rom_size: chr_rom_size, 
@@ -43,7 +42,6 @@ struct Memory {
 
 impl Memory {
     fn read(&self, idx: u16) -> u8 {
-        //println!("idx: {:x?}, prg rom length: {:x?}", idx, self.prg_rom.len());
         match idx {
             0..=0x1fff => self.ram[idx as usize],
             0x2000..=0x401f => self.io_registers[(idx - 0x2000) as usize],
@@ -111,16 +109,16 @@ impl Cpu {
     }
 
     pub fn run(&mut self) {
-        self.print_mem();
+        //self.print_mem();
         
-        loop {
+        loop {            
             let opcode = self.next_instruction();
-            print!("Opcode: {:x?}, PC: {:x?} | ", opcode, self.pc);      
+            print!("{:x?} | OPCODE {:x?} | ", self.pc - 1, opcode);      
 
             match opcode {
                 0x00 => {
-                    self.stack_push((self.pc & 0x0f) as u8);
-                    self.stack_push(((self.pc & 0xf0) >> 8) as u8);
+                    self.stack_push((self.pc & 0x00ff) as u8);
+                    self.stack_push(((self.pc & 0xff00) >> 8) as u8);
                     self.stack_push(self.p);
                     let addr1 = (self.memory.read(0xfffe) as u16) << 8;
                     let addr2 = self.memory.read(0xffff) as u16;
@@ -320,7 +318,7 @@ impl Cpu {
                 0x68 => {
                     let val = self.stack_pull();
                     self.lda(val);
-                    println!("pla");
+                    println!("pla {val:x?}");
                 }
                 0x28 => {
                     self.p = self.stack_pull();
@@ -451,12 +449,12 @@ impl Cpu {
                 }
 
                 0x24 => {
-                    let val = self.get_zero_page() & self.a;
+                    let val = self.get_zero_page() /*& self.a*/;
                     self.bit_test(val);
                     println!("bit zero page {:x?}", val);
                 }
                 0x2c => {
-                    let val = self.get_absolute() & self.a;
+                    let val = self.get_absolute() /*& self.a*/;
                     self.bit_test(val);
                     println!("bit absolute {:x?}", val);
                 }
@@ -846,20 +844,20 @@ impl Cpu {
                 }
 
                 0x4c => {
-                    let addr = self.get_absolute_addr() - 1;
+                    let addr = self.get_absolute_addr();
                     self.pc = addr;
                     println!("jmp absolute {:x?}", addr);
                 }
                 0x6c => {
-                    let addr = self.get_indirect_addr() - 1;
+                    let addr = self.get_indirect_addr();
                     self.pc = addr;
                     println!("jmp indirect {:x?}", addr);
                 }
 
                 0x20 => {
-                    let addr = self.get_absolute_addr() - 1;
-                    self.stack_push(((self.pc - 1) & 0x0f) as u8);
-                    self.stack_push((((self.pc - 1) & 0xf0) >> 8) as u8);
+                    let addr = self.get_absolute_addr();
+                    self.stack_push(((self.pc) & 0x00ff) as u8);
+                    self.stack_push((((self.pc) & 0xff00) >> 8) as u8);                 
                     self.pc = addr;
                     println!("jsr absolute {:x?}", addr);
                 }
@@ -957,12 +955,7 @@ impl Cpu {
                     println!("sei");
                 }
                 _ => print!("")
-            }
-
-            if self.pc >= 0xffff {
-                println!("End");
-                break;
-            }
+            }          
         }
     }
 
@@ -995,11 +988,11 @@ impl Cpu {
         let sum_2 = sum_1.0.overflowing_add(self.get_carry_flag());        
 
         self.a = sum_2.0;
-        
+
         self.set_zero_flag(self.a == 0);
         self.set_carry_flag(sum_1.1 || sum_2.1);
         self.set_negative(self.a & 0b10000000 == 0b10000000);
-        self.set_overflow(self.a & 0b10000000 == 0b10000000 && (sum_1.1 || sum_2.1));
+        self.set_overflow(sum_1.1 || sum_2.1);
     }
 
     fn sbc(&mut self, val: u8) {
@@ -1047,16 +1040,15 @@ impl Cpu {
     }
 
     fn get_absolute_addr(&mut self) -> u16 {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16);
+        let mut addr  = self.next_instruction() as u16;
+        addr += (self.next_instruction() as u16) << 8;
         addr
     }
 
     fn get_indirect_addr(&mut self) -> u16 {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16);
-        let addr1 = (self.memory.read(addr) as u16) << 8;
-        let addr2 = self.memory.read(addr + 1) as u16;
+        let addr = self.get_absolute_addr();
+        let addr1 = self.memory.read(addr) as u16;
+        let addr2 = (self.memory.read(addr + 1) as u16 )<< 8;
         addr1 + addr2
     }
 
@@ -1104,20 +1096,17 @@ impl Cpu {
     }
 
     fn write_absolute(&mut self, val: u8) {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16);
+        let addr = self.get_absolute_addr();
         self.memory.write(val, addr);
     }
 
     fn write_absolute_x(&mut self, val: u8) {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16) + (self.x as u16);
+        let addr = self.get_absolute_addr() + (self.x as u16);
         self.memory.write(val, addr);
     }
 
     fn write_absolute_y(&mut self, val: u8) {
-        let mut addr  = (self.next_instruction() as u16) << 8;
-        addr = addr | (self.next_instruction() as u16) + (self.y as u16);
+        let addr = self.get_absolute_addr() + (self.y as u16);
         self.memory.write(val, addr);
     }
 
@@ -1144,79 +1133,76 @@ impl Cpu {
     }
 
     fn stack_pull(&mut self) -> u8 {
-        let addr: u16;
         if self.sp < 0xff {
             self.sp += 1;
-            addr = 0x0100 + (self.sp as u16);            
+            self.memory.read(0x0100 + (self.sp as u16))         
         } else {
-            addr = 0x0100 + 0xff;
+            panic!("Empty stack");
         }
-        self.memory.read(addr)
-           
     }
 
     fn set_carry_flag(&mut self, carry: bool) {
         match carry {
-            true => self.p = self.p | 0b10000000,
-            false => self.p = self.p & 0b01111111
+            true => self.p = self.p | 0b00000001,
+            false => self.p = self.p & 0b11111110
         }
     }
 
     fn get_carry_flag(&self) -> u8 {
-        (self.p & 0b10000000) >> 7
+        self.p & 0b00000001
     }
 
     fn set_zero_flag(&mut self, zero: bool) {
         match zero {
-            true => self.p = self.p | 0b01000000,
-            false => self.p = self.p & 0b10111111
+            true => self.p = self.p | 0b00000010,
+            false => self.p = self.p & 0b11111101
         }
     }
 
     fn get_zero_flag(&self) -> u8 {
-        (self.p & 0b01000000) >> 6
-    }
-
-    fn get_negative_flag(&self) -> u8 {
         (self.p & 0b00000010) >> 1
     }
 
+    fn get_negative_flag(&self) -> u8 {
+        (self.p & 0b10000000) >> 7
+    }
+
     fn get_overflow_flag(&self) -> u8 {
-        (self.p & 0b00000100) >> 1
+        (self.p & 0b01000000) >> 6
     }
 
     fn set_interrupt_disable(&mut self, interrupt_disable: bool) {
         match interrupt_disable {
-            true => self.p = self.p | 0b00100000,
-            false => self.p = self.p & 0b11011111
-        }
-    }
-
-    fn set_decimal_mode(&mut self, decimal_mode: bool) {
-        match decimal_mode {
-            true => self.p = self.p | 0b00010000,
-            false => self.p = self.p & 0b11101111
-        }
-    }
-
-    fn set_break_command(&mut self, break_command: bool) {
-        match break_command {
-            true => self.p = self.p | 0b00001000,
-            false => self.p = self.p & 0b11110111
-        }
-    }
-
-    fn set_overflow(&mut self, overflow: bool) {
-        match overflow {
             true => self.p = self.p | 0b00000100,
             false => self.p = self.p & 0b11111011
         }
     }
 
+    fn set_decimal_mode(&mut self, decimal_mode: bool) {
+        match decimal_mode {
+            true => self.p = self.p | 0b00001000,
+            false => self.p = self.p & 0b11110111
+        }
+    }
+
+    fn set_break_command(&mut self, break_command: bool) {
+        match break_command {
+            true => self.p = self.p | 0b00010000,
+            false => self.p = self.p & 0b11101111
+        }
+    }
+
+    fn set_overflow(&mut self, overflow: bool) {
+        match overflow {
+            true => self.p = self.p | 0b01000000,
+            false => self.p = self.p & 0b10111111
+        }
+    }
+
     fn set_negative(&mut self, negative: bool) {
         match negative {
-            true => self.p = self.p | 0b00000010,
-            false => self.p = self.p & 0b11111101
+            true => self.p = self.p | 0b10000000,
+            false => self.p = self.p & 0b01111111
         }
     }
 

@@ -24,7 +24,7 @@ fn main() {
     let data = fs::read("nestest.nes");
     match data {
         Ok(_data) => {
-            read_header(&_data);
+            //read_header(&_data);
             let r = cpu::Rom::new(_data);
             let mut cpu = cpu::Cpu::new(r);
             cpu.run();
